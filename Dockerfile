@@ -1,13 +1,13 @@
 FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
     libssl-dev \
+    && update-ca-certificates \
     && docker-php-ext-configure openssl \
     && docker-php-ext-install pdo pdo_mysql sockets \
+    && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
-
-RUN curl -sS https://letsencrypt.org/certs/isrgrootx1.pem -o /etc/ssl/certs/tidb-ca.pem \
-    && a2enmod rewrite
 
 COPY . /var/www/html/
 COPY .htaccess /var/www/html/.htaccess
