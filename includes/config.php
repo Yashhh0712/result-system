@@ -12,13 +12,10 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ];
 
-    if ($host !== 'localhost' && $host !== '127.0.0.1') {
-        $caPath = '/etc/ssl/certs/ca-certificates.crt';
-        if (file_exists($caPath)) {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = $caPath;
-        } else {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = true;
-        }
+    $isExternal = !in_array($host, ['localhost', '127.0.0.1', '::1', '']);
+    if ($isExternal) {
+        $caPath = '/etc/ssl/certs/tidb-ca.pem';
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $caPath;
         $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
     }
 
