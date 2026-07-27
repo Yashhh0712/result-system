@@ -100,8 +100,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             <div class="login-footer">
                 <div class="demo-credentials">
-                    <h4>Demo Mode</h4>
-                    <p>Ask your teacher for login credentials</p>
+                    <h4>Demo Credentials</h4>
+                    <p><strong>Student:</strong> STU001 / password</p>
+                    <p><strong>Teacher:</strong> teacher1 / password</p>
                 </div>
             </div>
         </div>
