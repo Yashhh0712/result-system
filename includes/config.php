@@ -7,66 +7,51 @@ $port = getenv('DB_PORT') ?: '3306';
 
 $isExternal = !in_array($host, ['localhost', '127.0.0.1', '::1', '']);
 
-if ($isExternal) {
-    $mysqli = new mysqli();
-    $mysqli->ssl_set(null, null, '/etc/ssl/certs/ca-certificates.crt', null, null);
-    $mysqli->real_connect($host, $username, $password, $dbname, (int)$port, MYSQLI_CLIENT_SSL);
-    if ($mysqli->connect_error) {
-        die("Connection failed: " . $mysqli->connect_error);
-    }
-    $mysqli->set_charset('utf8mb4');
-    $pdo = new MysqliPdoWrapper($mysqli);
-} else {
-    try {
+try {
+    if ($isExternal) {
+        $mysqli = @new mysqli();
+        @$mysqli->ssl_set(null, null, '/etc/ssl/certs/ca-certificates.crt', null, null);
+        $ok = @$mysqli->real_connect($host, $username, $password, $dbname, (int)$port, MYSQLI_CLIENT_SSL | MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT);
+        if (!$ok || $mysqli->connect_error) {
+            $mysqli = @new mysqli();
+            $ok = @$mysqli->real_connect($host, $username, $password, $dbname, (int)$port, MYSQLI_CLIENT_SSL);
+        }
+        if (!$ok || $mysqli->connect_error) {
+            die("Connection failed: " . ($mysqli->connect_error ?: 'unknown error'));
+        }
+        $mysqli->set_charset('utf8mb4');
+        $pdo = new MysqliWrapper($mysqli);
+    } else {
         $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
         $pdo = new PDO($dsn, $username, $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
-    } catch (PDOException $e) {
-        die("Connection failed: " . $e->getMessage());
     }
+} catch(Exception $e) {
+    die("Connection failed: " . $e->getMessage());
 }
 
-class MysqliPdoWrapper {
-    private $mysqli;
-
-    public function __construct(mysqli $mysqli) {
-        $this->mysqli = $mysqli;
-    }
-
-    public function prepare($sql) {
+class MysqliWrapper {
+    public $mysqli;
+    function __construct($mysqli) { $this->mysqli = $mysqli; }
+    function prepare($sql) {
         $stmt = $this->mysqli->prepare($sql);
-        if (!$stmt) die("Prepare failed: " . $this->mysqli->error);
+        if (!$stmt) return false;
         return new MysqliStmtWrapper($stmt);
     }
-
-    public function exec($sql) {
+    function exec($sql) {
         $this->mysqli->multi_query($sql);
-        do {
-            if ($result = $this->mysqli->store_result()) $result->free();
-        } while ($this->mysqli->more_results() && $this->mysqli->next_result());
-        if ($this->mysqli->error) die("Exec failed: " . $this->mysqli->error);
+        do { if ($r = $this->mysqli->store_result()) $r->free(); } while ($this->mysqli->more_results() && $this->mysqli->next_result());
         return $this->mysqli->affected_rows;
     }
-
-    public function lastInsertId() {
-        return $this->mysqli->insert_id;
-    }
-
-    public function errorInfo() {
-        return $this->mysqli->error;
-    }
+    function lastInsertId() { return $this->mysqli->insert_id; }
 }
 
 class MysqliStmtWrapper {
     private $stmt;
-
-    public function __construct(mysqli_stmt $stmt) {
-        $this->stmt = $stmt;
-    }
-
-    public function execute($params = []) {
+    function __construct($stmt) { $this->stmt = $stmt; }
+    function execute($params = []) {
         if (!empty($params)) {
             $types = '';
             foreach ($params as $p) {
@@ -79,23 +64,19 @@ class MysqliStmtWrapper {
         $this->stmt->execute();
         return true;
     }
-
-    public function fetch($mode = PDO::FETCH_ASSOC) {
+    function fetch($mode = null) {
         $result = $this->stmt->get_result();
         if (!$result) return false;
         return $result->fetch_assoc();
     }
-
-    public function fetchAll($mode = PDO::FETCH_ASSOC) {
+    function fetchAll($mode = null) {
         $result = $this->stmt->get_result();
         if (!$result) return [];
         return $result->fetch_all(MYSQLI_ASSOC);
     }
-
-    public function rowCount() {
+    function rowCount() {
         $result = $this->stmt->get_result();
-        if (!$result) return 0;
-        return $result->num_rows;
+        return $result ? $result->num_rows : $this->stmt->affected_rows;
     }
 }
 
