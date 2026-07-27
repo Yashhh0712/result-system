@@ -6,8 +6,17 @@ $password = getenv('DB_PASS') ?: '';
 $port = getenv('DB_PORT') ?: '3306';
 
 try {
-    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname";
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ];
+
+    if ($host !== 'localhost' && $host !== '127.0.0.1') {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = true;
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+    }
+
+    $pdo = new PDO($dsn, $username, $password, $options);
 } catch(PDOException $e) {
     die("Connection failed: " . $e->getMessage());
 }
