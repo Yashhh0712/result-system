@@ -2,6 +2,12 @@
 require_once 'includes/config.php';
 header('Content-Type: application/json');
 
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required']);
+    exit;
+}
+
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch($action) {
