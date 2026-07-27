@@ -1,11 +1,7 @@
 FROM php:8.2-apache
 
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl-dev \
+RUN apt-get update && apt-get install -y ca-certificates \
     && update-ca-certificates \
-    && docker-php-ext-configure openssl \
-    && docker-php-ext-install mysqli pdo_mysql sockets \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
